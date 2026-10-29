@@ -73,6 +73,18 @@
       file: 'assets/tipsy/10-surprise.webp',  pc1: '#ffc970', pc2: '#d05b3e' }
   ];
 
+  /* 合成得到指定等级时播放对应录音；tier 0–1 保持程序音兜底。 */
+  const MERGE_SFX = {
+    2: { file: 'assets/audio/gadagada.mp3', volume: 0.78 },
+    3: { file: 'assets/audio/blue.mp3', volume: 0.68 },
+    4: { file: 'assets/audio/baby.mp3', volume: 0.82 },
+    5: { file: 'assets/audio/aaaaaaaa.mp3', volume: 0.75 },
+    6: { file: 'assets/audio/feidudu.mp3', volume: 0.72 },
+    7: { file: 'assets/audio/lajiao.mp3', volume: 0.64 },
+    8: { file: 'assets/audio/gg.mp3', volume: 0.72 },
+    9: { file: 'assets/audio/ohhhhhhhhh.mp3', volume: 0.9 }
+  };
+
   /* 合成出 tier 的得分（三角数） */
   const MERGE_SCORE = [0, 1, 3, 6, 10, 15, 21, 28, 36, 45];
 
@@ -147,14 +159,52 @@
 
   const Sound = {
     ctx: null,
+    buffers: Object.create(null),
+    loading: false,
     muted: localStorage.getItem(MUTE_KEY) === '1',
 
     ensure() {
       if (this.ctx) return this.ctx;
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
-      try { this.ctx = new AC(); } catch (e) { this.ctx = null; }
+      try {
+        this.ctx = new AC();
+        this.loadBuffers();
+      } catch (e) {
+        this.ctx = null;
+      }
       return this.ctx;
+    },
+
+    loadBuffers() {
+      if (this.loading || !this.ctx || typeof fetch !== 'function') return;
+      this.loading = true;
+      Object.keys(MERGE_SFX).forEach((tier) => {
+        const sfx = MERGE_SFX[tier];
+        fetch(sfx.file)
+          .then((response) => {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.arrayBuffer();
+          })
+          .then((data) => this.ctx.decodeAudioData(data))
+          .then((buffer) => { this.buffers[tier] = buffer; })
+          .catch(() => { /* 单条音频失败时继续使用程序音。 */ });
+      });
+    },
+
+    playSample(tier) {
+      if (this.muted) return false;
+      const c = this.ensure();
+      const buffer = c && this.buffers[tier];
+      if (!buffer) return false;
+      const source = c.createBufferSource();
+      const gain = c.createGain();
+      source.buffer = buffer;
+      gain.gain.value = MERGE_SFX[tier].volume;
+      source.connect(gain);
+      gain.connect(c.destination);
+      source.start();
+      return true;
     },
 
     tone(freq, freq2, dur, vol, type) {
@@ -180,6 +230,7 @@
     },
 
     merge(tier) {
+      if (this.playSample(tier)) return;
       const base = 240 * Math.pow(1.1225, tier * 2);
       this.tone(base, base * 1.7, 0.2, 0.16, 'sine');
       this.tone(base * 2, base * 3, 0.12, 0.06, 'triangle');
@@ -531,7 +582,7 @@
         addScore(MAX_BONUS);
         burst(mx, my, MAX_TIER, 90, 560);
         burst(mx, my, MAX_TIER - 2, 42, 340);
-        Sound.bonus();
+        Sound.merge(MAX_TIER);
         haptic(70);
         state.flash = 1.4;                    // 比普通合成更亮的全屏闪
         state.freeze = FREEZE_MS / 1000;      // 定格一下，让这一下有重量
@@ -622,7 +673,7 @@
     if (!got) return;
     paintRevives(true);
     state.floats.push({ x: W / 2, y: 210, text: '+1 复活币', life: 1.4, big: true });
-    Sound.merge(6);
+    Sound.bonus();
   }
 
   function addScore(n, x, y, text) {
@@ -1384,6 +1435,7 @@
 
   /* 调试句柄（控制台可用）：__TIPSY__.state / .reset() / .drop() / .FRUITS / .render() */
   window.__TIPSY__ = { state, reset, revive, settle, gameOver, tryDrop, stepPhysics, update, FRUITS,
+                     MERGE_SFX,
                      render, resizeCanvas, shapeOf, makeBall, paintRevives, addScore,
                      MAX_BONUS, REVIVE_STEP,
                      blurReady: () => !!blurImg };

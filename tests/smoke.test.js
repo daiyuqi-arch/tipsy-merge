@@ -105,6 +105,24 @@ function testGame() {
     const asset = path.join(root, fruit.file);
     assert.ok(fs.statSync(asset).size > 1000, `${fruit.file} should exist`);
   }
+  assert.strictEqual(
+    JSON.stringify(Object.fromEntries(
+      Object.entries(game.MERGE_SFX).map(([tier, sfx]) => [tier, sfx.file])
+    )),
+    JSON.stringify({
+      2: 'assets/audio/gadagada.mp3',
+      3: 'assets/audio/blue.mp3',
+      4: 'assets/audio/baby.mp3',
+      5: 'assets/audio/aaaaaaaa.mp3',
+      6: 'assets/audio/feidudu.mp3',
+      7: 'assets/audio/lajiao.mp3',
+      8: 'assets/audio/gg.mp3',
+      9: 'assets/audio/ohhhhhhhhh.mp3'
+    })
+  );
+  for (const sfx of Object.values(game.MERGE_SFX)) {
+    assert.ok(fs.statSync(path.join(root, sfx.file)).size > 1000, `${sfx.file} should exist`);
+  }
   for (let tier = 0; tier < game.FRUITS.length; tier++) {
     const shape = game.shapeOf(tier);
     assert.ok(shape.parts.length > 20);
