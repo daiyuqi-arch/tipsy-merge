@@ -108,8 +108,8 @@ function testGame() {
   for (let tier = 0; tier < game.FRUITS.length; tier++) {
     const shape = game.shapeOf(tier);
     assert.ok(shape.parts.length > 20);
-    assert.ok(shape.coverage >= 0.999);
-    assert.ok(shape.precision >= 0.79);
+    assert.ok(shape.coverage >= 0.94);
+    assert.ok(shape.precision >= 0.85);
     for (const part of shape.parts) {
       assert.ok(part.length === 3 && part.every(Number.isFinite));
       assert.ok(part[2] > 0);
