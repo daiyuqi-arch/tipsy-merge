@@ -76,13 +76,13 @@
   /* 合成得到指定等级时播放对应录音；tier 0–1 保持程序音兜底。 */
   const MERGE_SFX = {
     2: { file: 'assets/audio/gadagada.mp3', volume: 0.78 },
-    3: { file: 'assets/audio/blue.mp3', volume: 0.68 },
-    4: { file: 'assets/audio/baby.mp3', volume: 0.82 },
+    3: { file: 'assets/audio/blue2.mp3', volume: 0.72 },
+    4: { file: 'assets/audio/baby2.mp3', volume: 0.84 },
     5: { file: 'assets/audio/aaaaaaaa.mp3', volume: 0.75 },
     6: { file: 'assets/audio/feidudu.mp3', volume: 0.72 },
     7: { file: 'assets/audio/lajiao.mp3', volume: 0.64 },
     8: { file: 'assets/audio/gg.mp3', volume: 0.72 },
-    9: { file: 'assets/audio/ohhhhhhhhh.mp3', volume: 0.9 }
+    9: { file: 'assets/audio/OMG.mp3', volume: 0.82 }
   };
 
   /* 合成出 tier 的得分（三角数） */
@@ -94,6 +94,7 @@
 
   const BEST_KEY = 'tipsy.best.v1';
   const MUTE_KEY = 'tipsy.mute.v1';
+  const UNLOCK_KEY = 'tipsy.unlocked.v1';
 
   /* ---------------------------------------------------------
    *  DOM
@@ -129,6 +130,24 @@
 
   const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
   const rand  = (a, b) => a + Math.random() * (b - a);
+
+  function loadUnlocked() {
+    let saved = [];
+    try {
+      saved = JSON.parse(localStorage.getItem(UNLOCK_KEY) || '[]');
+    } catch (e) {
+      saved = [];
+    }
+    return FRUITS.map((_, tier) => tier === 0 || saved[tier] === true);
+  }
+
+  function saveUnlocked() {
+    try {
+      localStorage.setItem(UNLOCK_KEY, JSON.stringify(state.unlocked));
+    } catch (e) {
+      /* 存储不可用时，本局内仍保留解锁状态。 */
+    }
+  }
 
   /* 「下一个」是否允许和当前这颗相同。
      允许的话有约 22% 概率两边显示同一张图，看起来像“下一个显示的是当前这个”，
@@ -284,7 +303,8 @@
     flash: 0,
     revives: 0,        // 本局还剩几枚复活币（重开清零）
     reviveGiven: 0,    // 本局已经发放过几次（用来判断跨过新的 2000 分）
-    freeze: 0          // 命中定格剩余秒数
+    freeze: 0,         // 命中定格剩余秒数
+    unlocked: loadUnlocked()
   };
 
   /* ---------------------------------------------------------
@@ -604,6 +624,11 @@
         nb.popAt = performance.now();
         state.balls.push(nb);
 
+        if (!state.unlocked[nt]) {
+          state.unlocked[nt] = true;
+          saveUnlocked();
+          drawChain();
+        }
         addScore(MERGE_SCORE[nt], mx, my, '+' + MERGE_SCORE[nt]);
         burst(mx, my, nt, 8 + nt * 2, 140 + nt * 22);
         Sound.merge(nt);
@@ -837,6 +862,7 @@
     state.revives = 0;        // 复活币只在本局有效，重开清零
     state.reviveGiven = 0;
     state.freeze = 0;
+    state.unlocked = loadUnlocked();
     state.pending = pickSpawnTier();
     state.next = pickSpawnTier(state.pending);
     if (overlayEl) overlayEl.classList.remove('show');
@@ -846,6 +872,7 @@
     scoreEl.textContent = '0';
     bestEl.textContent = state.best;
     drawNext();
+    drawChain();
     Sound.ensure();
   }
 
@@ -1169,7 +1196,26 @@
 
     for (let i = 0; i < FRUITS.length; i++) {
       const x = slot * (i + 0.5);
-      drawFruit(chainCtx, x, cy, r, i, 0, 1);
+      if (state.unlocked[i]) {
+        drawFruit(chainCtx, x, cy, r, i, 0, 1);
+      } else {
+        chainCtx.save();
+        chainCtx.beginPath();
+        chainCtx.arc(x, cy, r * 0.92, 0, Math.PI * 2);
+        chainCtx.fillStyle = 'rgba(226, 194, 174, .34)';
+        chainCtx.fill();
+        chainCtx.setLineDash([3, 3]);
+        chainCtx.lineWidth = 1.2;
+        chainCtx.strokeStyle = 'rgba(149, 103, 82, .28)';
+        chainCtx.stroke();
+        chainCtx.setLineDash([]);
+        chainCtx.fillStyle = '#b48673';
+        chainCtx.font = '900 ' + Math.round(r * 0.9) + 'px system-ui, sans-serif';
+        chainCtx.textAlign = 'center';
+        chainCtx.textBaseline = 'middle';
+        chainCtx.fillText('?', x, cy + 1);
+        chainCtx.restore();
+      }
       if (i < FRUITS.length - 1) {
         chainCtx.save();
         chainCtx.globalAlpha = 0.45;

@@ -111,13 +111,13 @@ function testGame() {
     )),
     JSON.stringify({
       2: 'assets/audio/gadagada.mp3',
-      3: 'assets/audio/blue.mp3',
-      4: 'assets/audio/baby.mp3',
+      3: 'assets/audio/blue2.mp3',
+      4: 'assets/audio/baby2.mp3',
       5: 'assets/audio/aaaaaaaa.mp3',
       6: 'assets/audio/feidudu.mp3',
       7: 'assets/audio/lajiao.mp3',
       8: 'assets/audio/gg.mp3',
-      9: 'assets/audio/ohhhhhhhhh.mp3'
+      9: 'assets/audio/OMG.mp3'
     })
   );
   for (const sfx of Object.values(game.MERGE_SFX)) {
@@ -133,6 +133,22 @@ function testGame() {
       assert.ok(part[2] > 0);
     }
   }
+
+  game.reset();
+  assert.strictEqual(game.state.unlocked[0], true);
+  assert.strictEqual(game.state.unlocked.slice(1).some(Boolean), false);
+  game.state.balls.length = 0;
+  const firstA = game.makeBall(210, 520, 0, 0, 0);
+  const firstB = game.makeBall(210, 520 - game.FRUITS[0].r * 2 - 0.5, 0, 0, 0);
+  firstA.landed = true;
+  firstB.landed = true;
+  game.state.balls.push(firstA, firstB);
+  for (let frame = 0; frame < 30 && game.state.balls.length === 2; frame++) {
+    game.stepPhysics(1 / 60);
+  }
+  assert.strictEqual(game.state.unlocked[1], true);
+  game.reset();
+  assert.strictEqual(game.state.unlocked[1], true);
 
   game.reset();
   for (let i = 0; i < 12; i++) {
